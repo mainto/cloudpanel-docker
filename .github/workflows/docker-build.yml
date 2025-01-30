@@ -11,38 +11,61 @@ on:
 jobs:
   check-release:
     runs-on: ubuntu-latest
-    outputs:
-      latest_version: ${{ env.LATEST_VERSION }}
-      needs_build: ${{ env.NEEDS_BUILD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Get latest CloudPanel release
-        id: get_version
         run: |
           latest_version=$(curl -s https://api.github.com/repos/cloudpanel-io/cloudpanel-ce/releases/latest | jq -r .tag_name)
           echo "Latest release: $latest_version"
-          echo "LATEST_VERSION=$latest_version" >> "$GITHUB_ENV"
+          echo "$latest_version" > latest_version.txt
 
       - name: Compare with existing version
-        id: compare_versions
         run: |
           current_version=$(cat version.txt 2>/dev/null || echo "none")
-          if [ "$current_version" != "$LATEST_VERSION" ]; then
-            echo "New version available: $LATEST_VERSION"
-            echo "NEEDS_BUILD=true" >> "$GITHUB_ENV"
+          latest_version=$(cat latest_version.txt)
+
+          if [ "$current_version" != "$latest_version" ]; then
+            echo "New version available: $latest_version"
+            echo "true" > needs_build.txt
           else
             echo "Already up-to-date"
-            echo "NEEDS_BUILD=false" >> "$GITHUB_ENV"
-        env:
-          LATEST_VERSION: ${{ env.LATEST_VERSION }}
+            echo "false" > needs_build.txt
+          fi
+
+      - name: Upload version info
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-info
+          path: |
+            latest_version.txt
+            needs_build.txt
 
   build-and-push:
     needs: check-release
-    if: env.NEEDS_BUILD == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Download version info
+        uses: actions/download-artifact@v4
+        with:
+          name: version-info
+
+      - name: Read version info
+        run: |
+          latest_version=$(cat latest_version.txt)
+          needs_build=$(cat needs_build.txt)
+
+          echo "LATEST_VERSION=$latest_version" >> "$GITHUB_ENV"
+          echo "NEEDS_BUILD=$needs_build" >> "$GITHUB_ENV"
+
+      - name: Check if build is needed
+        run: |
+          if [ "$NEEDS_BUILD" != "true" ]; then
+            echo "No new version to build. Skipping..."
+            exit 0
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -54,19 +77,19 @@ jobs:
 
       - name: Build and tag Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ env.LATEST_VERSION }} .
-          docker tag ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ env.LATEST_VERSION }} ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:$LATEST_VERSION .
+          docker tag ${{ secrets.DOCKER_USERNAME }}/cloudpanel:$LATEST_VERSION ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
 
       - name: Push to Docker Hub
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ env.LATEST_VERSION }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:$LATEST_VERSION
           docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
 
       - name: Commit updated version after push
         run: |
-          echo "${{ env.LATEST_VERSION }}" > version.txt
+          echo "$LATEST_VERSION" > version.txt
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add version.txt
-          git commit -m "Update version to ${{ env.LATEST_VERSION }}"
+          git commit -m "Update version to $LATEST_VERSION"
           git push
