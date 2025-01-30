@@ -5,9 +5,9 @@ RUN apt update && apt install -y \
     curl sudo gnupg unzip wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables required for systemd
-ENV container docker
-STOPSIGNAL SIGRTMIN+3
+RUN useradd -m docker && echo "docker:docker" | chpasswd && adduser docker sudo
+
+USER docker
 
 # Install CloudPanel
 RUN curl -sSL https://installer.cloudpanel.io/ce/v2/install.sh | bash
