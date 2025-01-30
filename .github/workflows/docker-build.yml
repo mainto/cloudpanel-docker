@@ -32,6 +32,7 @@ jobs:
           current_version=$(cat version.txt 2>/dev/null || echo "none")
           if [ "$current_version" != "${{ env.version }}" ]; then
             echo "New version available: ${{ env.version }}"
+            echo "${{ env.version }}" > version.txt
             echo "needs_build=true" >> $GITHUB_ENV
             echo "needs_build=true" >> $GITHUB_OUTPUT
           else
@@ -55,14 +56,14 @@ jobs:
 
       - name: Build and tag Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} .
+          DOCKER_BUILDKIT=1 docker build --security-opt seccomp=unconfined -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} .
           docker tag ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
 
       - name: Push to Docker Hub
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }}
           docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
-  
+
   update-version:
     needs: build-and-push
     runs-on: ubuntu-latest
