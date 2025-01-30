@@ -68,7 +68,7 @@ jobs:
 
       - name: Run Privileged Container and Install CloudPanel
         run: |
-          docker run --privileged --name cloudpanel-install -d jrei/systemd-debian:12
+          docker run --privileged --name cloudpanel-install -d jrei/systemd-debian:12 /sbin/init
           
           echo "Installing dependencies..."
           docker exec cloudpanel-install bash -c "apt update && apt install -y curl sudo gnupg unzip wget lsb-release"
