@@ -23,8 +23,8 @@ jobs:
         run: |
           latest_version=$(curl -s https://api.github.com/repos/cloudpanel-io/cloudpanel-ce/releases/latest | jq -r .tag_name)
           echo "Latest release: $latest_version"
-          echo "version=$latest_version" >> "$GITHUB_ENV"
-          echo "version=$latest_version" >> "$GITHUB_OUTPUT"
+          echo "version=$latest_version" >> $GITHUB_ENV
+          echo "version=$latest_version" >> $GITHUB_OUTPUT
 
       - name: Compare with existing version
         id: compare_versions
@@ -32,16 +32,16 @@ jobs:
           current_version=$(cat version.txt 2>/dev/null || echo "none")
           if [ "$current_version" != "${{ env.version }}" ]; then
             echo "New version available: ${{ env.version }}"
-            echo "needs_build=true" >> "$GITHUB_ENV"
-            echo "needs_build=true" >> "$GITHUB_OUTPUT"
+            echo "needs_build=true" >> $GITHUB_ENV
+            echo "needs_build=true" >> $GITHUB_OUTPUT
           else
             echo "Already up-to-date"
-            echo "needs_build=false" >> "$GITHUB_ENV"
-            echo "needs_build=false" >> "$GITHUB_OUTPUT"
+            echo "needs_build=false" >> $GITHUB_ENV
+            echo "needs_build=false" >> $GITHUB_OUTPUT
 
   build-and-push:
     needs: check-release
-    if: needs.check-release.outputs.needs_build == 'true' && needs.check-release.outputs.needs_build != ''
+    if: needs.check-release.outputs.needs_build == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -55,7 +55,7 @@ jobs:
 
       - name: Build and tag Docker image
         run: |
-          DOCKER_BUILDKIT=1 docker build --security-opt seccomp=unconfined -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} .
           docker tag ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
 
       - name: Push to Docker Hub
@@ -63,20 +63,11 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }}
           docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
 
-  update-version:
-    needs: [check-release, build-and-push]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Commit updated version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit updated version after push
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           echo "${{ needs.check-release.outputs.latest_version }}" > version.txt
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
           git add version.txt
           git commit -m "Update version to ${{ needs.check-release.outputs.latest_version }}"
-          git push origin main
+          git push
