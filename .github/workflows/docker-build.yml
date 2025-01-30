@@ -40,16 +40,6 @@ jobs:
             echo "needs_build=false" >> $GITHUB_ENV
             echo "::set-output name=needs_build::false"
           fi
-      - name: Commit updated version
-        if: steps.compare_versions.outputs.needs_build == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add version.txt
-          git commit -m "Update version to ${{ env.version }}"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
 
 
   build-and-push:
@@ -68,11 +58,21 @@ jobs:
 
       - name: Build and tag Docker image
         run: |
-          docker build -t your-dockerhub-username/cloudpanel:${{ needs.check-release.outputs.latest_version }} .
-          docker tag your-dockerhub-username/cloudpanel:${{ needs.check-release.outputs.latest_version }} your-dockerhub-username/cloudpanel:latest
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} .
+          docker tag ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
 
       - name: Push to Docker Hub
         run: |
-          docker push your-dockerhub-username/cloudpanel:${{ needs.check-release.outputs.latest_version }}
-          docker push your-dockerhub-username/cloudpanel:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
+
+      - name: Commit updated version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.txt
+          git commit -m "Update version to ${{ env.version }}"
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
 
