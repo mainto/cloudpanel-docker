@@ -23,8 +23,8 @@ jobs:
         run: |
           latest_version=$(curl -s https://api.github.com/repos/cloudpanel-io/cloudpanel-ce/releases/latest | jq -r .tag_name)
           echo "Latest release: $latest_version"
-          echo "version=$latest_version" >> $GITHUB_ENV
-          echo "version=$latest_version" >> $GITHUB_OUTPUT
+          echo "version=$latest_version" >> "$GITHUB_ENV"
+          echo "version=$latest_version" >> "$GITHUB_OUTPUT"
 
       - name: Compare with existing version
         id: compare_versions
@@ -32,17 +32,16 @@ jobs:
           current_version=$(cat version.txt 2>/dev/null || echo "none")
           if [ "$current_version" != "${{ env.version }}" ]; then
             echo "New version available: ${{ env.version }}"
-            echo "${{ env.version }}" > version.txt
-            echo "needs_build=true" >> $GITHUB_ENV
-            echo "needs_build=true" >> $GITHUB_OUTPUT
+            echo "needs_build=true" >> "$GITHUB_ENV"
+            echo "needs_build=true" >> "$GITHUB_OUTPUT"
           else
             echo "Already up-to-date"
-            echo "needs_build=false" >> $GITHUB_ENV
-            echo "needs_build=false" >> $GITHUB_OUTPUT
+            echo "needs_build=false" >> "$GITHUB_ENV"
+            echo "needs_build=false" >> "$GITHUB_OUTPUT"
 
   build-and-push:
     needs: check-release
-    if: needs.check-release.outputs.needs_build == 'true'
+    if: needs.check-release.outputs.needs_build == 'true' && needs.check-release.outputs.needs_build != ''
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -65,7 +64,7 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
 
   update-version:
-    needs: build-and-push
+    needs: [check-release, build-and-push]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -80,4 +79,4 @@ jobs:
           echo "${{ needs.check-release.outputs.latest_version }}" > version.txt
           git add version.txt
           git commit -m "Update version to ${{ needs.check-release.outputs.latest_version }}"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+          git push origin main
