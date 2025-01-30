@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM debian:12
 
 # Install dependencies
 RUN apt update && apt install -y \
