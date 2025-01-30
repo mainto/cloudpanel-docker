@@ -71,10 +71,10 @@ jobs:
           docker run --privileged --name cloudpanel-install -d jrei/systemd-debian:12
           
           echo "Installing dependencies..."
-          docker exec -it cloudpanel-install bash -c "apt update && apt install -y curl sudo gnupg unzip wget lsb-release"
+          docker exec cloudpanel-install bash -c "apt update && apt install -y curl sudo gnupg unzip wget lsb-release"
 
           echo "Installing CloudPanel..."
-          docker exec -it cloudpanel-install bash -c "curl -sSL https://installer.cloudpanel.io/ce/v2/install.sh | bash"
+          docker exec cloudpanel-install bash -c "curl -sSL https://installer.cloudpanel.io/ce/v2/install.sh | bash"
 
           echo "Stopping and committing the container..."
           docker stop cloudpanel-install
