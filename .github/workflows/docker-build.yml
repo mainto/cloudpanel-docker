@@ -58,7 +58,7 @@ jobs:
 
       - name: Build and tag Docker image
         run: |
-          docker build --privileged -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} .
+          DOCKER_BUILDKIT=1 docker build --security-opt seccomp=unconfined -t ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} .
           docker tag ${{ secrets.DOCKER_USERNAME }}/cloudpanel:${{ needs.check-release.outputs.latest_version }} ${{ secrets.DOCKER_USERNAME }}/cloudpanel:latest
 
       - name: Push to Docker Hub
