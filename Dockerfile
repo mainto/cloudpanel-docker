@@ -1,16 +1,21 @@
 FROM debian:12
 
-# Install dependencies
-RUN apt update && apt install -y \
-    curl sudo gnupg unzip wget \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+ && apt-get install -y sudo
 
-RUN useradd -m docker && echo "docker:docker" | chpasswd && adduser docker sudo
+RUN adduser --disabled-password --gecos '' docker
+RUN adduser docker sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 USER docker
 
+# Install dependencies
+RUN sudo apt update && apt install -y \
+    curl sudo gnupg unzip wget \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install CloudPanel
-RUN curl -sSL https://installer.cloudpanel.io/ce/v2/install.sh | bash
+RUN sudo curl -sSL https://installer.cloudpanel.io/ce/v2/install.sh | sudo bash
 
 # Expose ports
 EXPOSE 8443
